@@ -2,6 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useChat } from '@/hooks/useChat'
 import { useConversations } from '@/hooks/useConversations'
+import { useSubscription } from '@/hooks/useSubscription'
+import { SubscriptionGate } from '@/components/SubscriptionGate'
 import { ChatMessages } from '@/components/chat/ChatMessages'
 import { ChatInput } from '@/components/chat/ChatInput'
 
@@ -16,10 +18,19 @@ function ChatAgent() {
   const { user } = useAuth()
   const { messages, isLoading, sendMessage, rateMessage, conversationId, startNewConversation, loadConversation } = useChat(user)
   const { conversations, isLoading: convsLoading, refetch: refetchConversations } = useConversations(user)
+  const { subscription, isLoading: subLoading } = useSubscription(user)
 
   const handleSend = async (text: string) => {
     await sendMessage(text)
     refetchConversations()
+  }
+
+  if (subLoading) {
+    return <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">Chargement...</div>
+  }
+
+  if (subscription?.status !== 'active') {
+    return <SubscriptionGate />
   }
 
   return (

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useDocuments } from '@/hooks/useDocuments'
+import { useSubscription } from '@/hooks/useSubscription'
+import { SubscriptionGate } from '@/components/SubscriptionGate'
 
 export const Route = createFileRoute('/_app/documents')({
   head: () => ({
@@ -13,6 +15,7 @@ export const Route = createFileRoute('/_app/documents')({
 function DocumentsPage() {
   const { user } = useAuth()
   const { documents, isLoading, uploadDocument, deleteDocument, uploadProgress, migrateAllDocuments } = useDocuments(user)
+  const { subscription, isLoading: subLoading } = useSubscription(user)
   const [isMigrating, setIsMigrating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
@@ -34,6 +37,14 @@ function DocumentsPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+  }
+
+  if (subLoading) {
+    return <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">Chargement...</div>
+  }
+
+  if (subscription?.status !== 'active') {
+    return <SubscriptionGate />
   }
 
   return (
