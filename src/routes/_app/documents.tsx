@@ -62,7 +62,7 @@ function DocumentsPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt,text/plain,.pdf,application/pdf"
+          accept=".txt,text/plain,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleFileChange}
           className="hidden"
           id="file-upload"
@@ -74,7 +74,7 @@ function DocumentsPage() {
           {isUploading ? (uploadProgress || 'Envoi en cours...') : 'Choisir un fichier'}
         </label>
         <p className="mt-3 text-sm text-muted-foreground">
-          Fichiers texte (.txt) et PDF acceptes
+          Fichiers texte (.txt), PDF et Word (.docx) acceptes
         </p>
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
       </div>

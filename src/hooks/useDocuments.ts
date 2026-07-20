@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { extractPdfText } from '@/lib/extractPdfText'
+import { extractDocxText } from '@/lib/extractDocxText'
 import { chunkText, generateEmbedding } from '@/lib/embeddings'
 
 export interface DocumentRow {
@@ -39,9 +40,12 @@ export function useDocuments(user: User | null) {
 
       const isTextFile = file.type === 'text/plain' || file.name.endsWith('.txt')
       const isPdfFile = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+      const isDocxFile =
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.name.endsWith('.docx')
 
-      if (!isTextFile && !isPdfFile) {
-        return { error: 'Seuls les fichiers .txt et .pdf sont acceptes pour le moment.' }
+      if (!isTextFile && !isPdfFile && !isDocxFile) {
+        return { error: 'Seuls les fichiers .txt, .pdf et .docx sont acceptes pour le moment.' }
       }
 
       const { data: existing } = await supabase
@@ -58,7 +62,13 @@ export function useDocuments(user: User | null) {
       let content = ''
 
       try {
-        content = isPdfFile ? await extractPdfText(file) : await file.text()
+        if (isPdfFile) {
+          content = await extractPdfText(file)
+        } else if (isDocxFile) {
+          content = await extractDocxText(file)
+        } else {
+          content = await file.text()
+        }
       } catch {
         return { error: "Impossible de lire le contenu de ce fichier." }
       }
