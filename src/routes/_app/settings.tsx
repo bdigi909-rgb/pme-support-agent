@@ -14,12 +14,16 @@ export const Route = createFileRoute('/_app/settings')({
 
 function Settings() {
   const { user } = useAuth()
-  const { companyName, isLoading, updateCompanyName, updatePassword } = useProfile(user)
+  const { companyName, allowedDomains, isLoading, updateCompanyName, updateAllowedDomains, updatePassword } = useProfile(user)
   const { subscription, isLoading: subLoading } = useSubscription(user)
 
   const [nameInput, setNameInput] = useState('')
   const [nameStatus, setNameStatus] = useState('')
   const [isSavingName, setIsSavingName] = useState(false)
+
+  const [domainsInput, setDomainsInput] = useState('')
+  const [domainsStatus, setDomainsStatus] = useState('')
+  const [isSavingDomains, setIsSavingDomains] = useState(false)
 
   const [newPassword, setNewPassword] = useState('')
   const [passwordStatus, setPasswordStatus] = useState('')
@@ -43,6 +47,26 @@ function Settings() {
   useEffect(() => {
     setNameInput(companyName)
   }, [companyName])
+
+  useEffect(() => {
+    setDomainsInput(allowedDomains.join(', '))
+  }, [allowedDomains])
+
+  const handleSaveDomains = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSavingDomains(true)
+    setDomainsStatus('')
+
+    const domains = domainsInput
+      .split(',')
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0)
+
+    const result = await updateAllowedDomains(domains)
+
+    setIsSavingDomains(false)
+    setDomainsStatus(result.error ? `Erreur: ${result.error}` : 'Enregistre.')
+  }
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -152,6 +176,39 @@ function Settings() {
           {nameStatus && (
             <p className={`text-sm ${nameStatus.startsWith('Erreur') ? 'text-red-500' : 'text-green-600'}`}>
               {nameStatus}
+            </p>
+          )}
+        </form>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Widget - Domaines autorises
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Indiquez les domaines sur lesquels votre widget de chat peut etre utilise (separes par des virgules). Laissez vide pour autoriser tous les domaines.
+        </p>
+
+        <form onSubmit={handleSaveDomains} className="mt-4 flex flex-col gap-3">
+          <input
+            type="text"
+            value={domainsInput}
+            onChange={(e) => setDomainsInput(e.target.value)}
+            placeholder="monsite.com, www.monsite.com"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          />
+
+          <button
+            type="submit"
+            disabled={isSavingDomains}
+            className="w-fit rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {isSavingDomains ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+
+          {domainsStatus && (
+            <p className={`text-sm ${domainsStatus.startsWith('Erreur') ? 'text-red-500' : 'text-green-600'}`}>
+              {domainsStatus}
             </p>
           )}
         </form>

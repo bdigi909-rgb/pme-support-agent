@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 
 export function useProfile(user: User | null) {
   const [companyName, setCompanyName] = useState('')
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const refetch = useCallback(async () => {
@@ -12,11 +13,12 @@ export function useProfile(user: User | null) {
 
     const { data } = await supabase
       .from('profiles')
-      .select('company_name')
+      .select('company_name, allowed_domains')
       .eq('id', user.id)
       .maybeSingle()
 
     setCompanyName(data?.company_name ?? '')
+    setAllowedDomains(data?.allowed_domains ?? [])
     setIsLoading(false)
   }, [user])
 
@@ -40,10 +42,33 @@ export function useProfile(user: User | null) {
     [user],
   )
 
+  const updateAllowedDomains = useCallback(
+    async (domains: string[]) => {
+      if (!user) return { error: 'Non connecte' }
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, allowed_domains: domains, updated_at: new Date().toISOString() })
+
+      if (error) return { error: error.message }
+
+      setAllowedDomains(domains)
+      return { error: null }
+    },
+    [user],
+  )
+
   const updatePassword = useCallback(async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     return { error: error?.message ?? null }
   }, [])
 
-  return { companyName, isLoading, updateCompanyName, updatePassword }
+  return {
+    companyName,
+    allowedDomains,
+    isLoading,
+    updateCompanyName,
+    updateAllowedDomains,
+    updatePassword,
+  }
 }

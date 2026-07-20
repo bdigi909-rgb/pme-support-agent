@@ -22,6 +22,24 @@ Deno.serve(async (req) => {
     )
 
     if (widgetOwnerId) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('allowed_domains')
+        .eq('id', widgetOwnerId)
+        .maybeSingle()
+
+      const allowedDomains = profile?.allowed_domains ?? []
+      const origin = req.headers.get('origin') ?? ''
+
+      const isAllowed = allowedDomains.some((domain: string) => origin.includes(domain))
+
+      if (allowedDomains.length > 0 && !isAllowed) {
+        return new Response(JSON.stringify({ error: 'Domaine non autorise pour ce widget.' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       targetUserId = widgetOwnerId
     } else {
       const authHeader = req.headers.get('Authorization')
