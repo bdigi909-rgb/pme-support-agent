@@ -12,7 +12,7 @@ export const Route = createFileRoute('/_app/documents')({
 
 function DocumentsPage() {
   const { user } = useAuth()
-  const { documents, isLoading, uploadDocument, deleteDocument } = useDocuments(user)
+  const { documents, isLoading, uploadDocument, deleteDocument, uploadProgress } = useDocuments(user)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -53,11 +53,11 @@ function DocumentsPage() {
           className="hidden"
           id="file-upload"
         />
-        <label
+       <label
           htmlFor="file-upload"
           className="cursor-pointer rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
         >
-          {isUploading ? 'Envoi en cours...' : 'Choisir un fichier'}
+          {isUploading ? (uploadProgress || 'Envoi en cours...') : 'Choisir un fichier'}
         </label>
         <p className="mt-3 text-sm text-muted-foreground">
           Fichiers texte (.txt) et PDF acceptes

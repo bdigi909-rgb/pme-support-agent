@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { generateEmbedding } from '@/lib/embeddings'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -49,12 +50,15 @@ export function useChat(user: User | null) {
       }
 
       try {
+        const queryEmbedding = await generateEmbedding(text)
+
         const { data, error: fnError } = await supabase.functions.invoke('chat', {
           body: {
             messages: updatedMessages.map((m) => ({
               role: m.role,
               content: m.content,
             })),
+            queryEmbedding,
           },
         })
 

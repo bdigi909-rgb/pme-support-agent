@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { extractPdfText } from '@/lib/extractPdfText'
+import { chunkText, generateEmbedding } from '@/lib/embeddings'
 
 export interface DocumentRow {
   id: string
@@ -12,6 +13,7 @@ export interface DocumentRow {
 export function useDocuments(user: User | null) {
   const [documents, setDocuments] = useState<DocumentRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [uploadProgress, setUploadProgress] = useState('')
 
   const refetch = useCallback(async () => {
     if (!user) return
@@ -60,14 +62,35 @@ export function useDocuments(user: User | null) {
         return { error: uploadError.message }
       }
 
-      const { error: insertError } = await supabase
+      const { data: docData, error: insertError } = await supabase
         .from('documents')
         .insert({ user_id: user.id, name: file.name, content })
+        .select('id')
+        .single()
 
-      if (insertError) {
-        return { error: insertError.message }
+      if (insertError || !docData) {
+        return { error: insertError?.message ?? 'Erreur lors de la creation du document.' }
       }
 
+      try {
+        const chunks = chunkText(content)
+
+        for (let i = 0; i < chunks.length; i++) {
+          setUploadProgress(`Analyse du contenu... ${i + 1}/${chunks.length}`)
+          const embedding = await generateEmbedding(chunks[i])
+
+          await supabase.from('document_chunks').insert({
+            document_id: docData.id,
+            user_id: user.id,
+            content: chunks[i],
+            embedding,
+          })
+        }
+      } catch (err) {
+        console.error('Erreur generation embeddings:', err)
+      }
+
+      setUploadProgress('')
       await refetch()
       return { error: null }
     },
@@ -82,5 +105,5 @@ export function useDocuments(user: User | null) {
     [refetch],
   )
 
-  return { documents, isLoading, uploadDocument, deleteDocument, refetch }
+  return { documents, isLoading, uploadDocument, deleteDocument, refetch, uploadProgress }
 }

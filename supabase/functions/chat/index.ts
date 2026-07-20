@@ -11,30 +11,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, widgetOwnerId } = await req.json()
+    const { messages, widgetOwnerId, queryEmbedding } = await req.json()
 
     let context = ''
-    let ownerId: string | null = null
+    let targetUserId: string | null = null
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
 
     if (widgetOwnerId) {
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      )
-
-      const { data: documents } = await supabaseAdmin
-        .from('documents')
-        .select('name, content')
-        .eq('user_id', widgetOwnerId)
-        .not('content', 'is', null)
-
-      if (documents && documents.length > 0) {
-        context = documents
-          .map((doc: { name: string; content: string }) => `### ${doc.name}\n${doc.content}`)
-          .join('\n\n')
-      }
-
-      ownerId = widgetOwnerId
+      targetUserId = widgetOwnerId
     } else {
       const authHeader = req.headers.get('Authorization')
 
@@ -45,26 +33,27 @@ Deno.serve(async (req) => {
       )
 
       const { data: { user } } = await supabaseClient.auth.getUser()
+      targetUserId = user?.id ?? null
+    }
 
-      if (user) {
-        const { data: documents } = await supabaseClient
-          .from('documents')
-          .select('name, content')
-          .eq('user_id', user.id)
-          .not('content', 'is', null)
+    if (targetUserId && queryEmbedding) {
+      const { data: chunks } = await supabaseAdmin.rpc('match_document_chunks', {
+        query_embedding: queryEmbedding,
+        match_user_id: targetUserId,
+        match_count: 5,
+      })
 
-        if (documents && documents.length > 0) {
-          context = documents
-            .map((doc: { name: string; content: string }) => `### ${doc.name}\n${doc.content}`)
-            .join('\n\n')
-        }
+      if (chunks && chunks.length > 0) {
+        context = chunks
+          .map((chunk: { content: string }) => chunk.content)
+          .join('\n\n---\n\n')
       }
     }
 
     const systemMessage = context
       ? {
           role: 'system',
-          content: `Tu es un agent de support client. Reponds aux questions en te basant sur les documents suivants fournis par l'entreprise. Si la reponse ne se trouve pas dans ces documents, dis-le clairement plutot que d'inventer une reponse.\n\n${context}`,
+          content: `Tu es un agent de support client. Reponds aux questions en te basant sur les extraits de documents suivants fournis par l'entreprise. Si la reponse ne se trouve pas dans ces extraits, dis-le clairement plutot que d'inventer une reponse.\n\n${context}`,
         }
       : {
           role: 'system',
