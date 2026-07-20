@@ -1,29 +1,33 @@
-import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { supabase } from '@/lib/supabase'
 
 const plans = [
   {
     name: 'Starter',
-    price: '29€',
+    price: '29 EUR',
     period: '/mois',
-    description: 'Idéal pour tester avec un petit volume de conversations.',
+    priceId: 'price_1TvLZ6AjUgyvbyFwrV7nWuXf',
+    description: 'Ideal pour tester avec un petit volume de conversations.',
     features: [
-      "Jusqu'à 200 conversations/mois",
+      "Jusqu'a 200 conversations/mois",
       '1 canal (email ou chat)',
-      '5 documents importés',
+      '5 documents importes',
       'Support par email',
     ],
     highlighted: false,
   },
   {
     name: 'Pro',
-    price: '79€',
+    price: '79 EUR',
     period: '/mois',
+    priceId: 'price_1TvLXYAjUgyvbyFwSm2psIRD',
     description: 'Le choix des PME qui veulent automatiser tout leur support.',
     features: [
-      'Conversations illimitées',
+      'Conversations illimitees',
       'Email, WhatsApp et chat',
-      'Documents illimités',
-      'Statistiques avancées',
+      'Documents illimites',
+      'Statistiques avancees',
       'Support prioritaire',
     ],
     highlighted: true,
@@ -32,11 +36,12 @@ const plans = [
     name: 'Entreprise',
     price: 'Sur devis',
     period: '',
-    description: 'Pour les besoins spécifiques et volumes importants.',
+    priceId: null,
+    description: 'Pour les besoins specifiques et volumes importants.',
     features: [
       'Tout Pro inclus',
-      'Intégrations personnalisées',
-      'Accompagnement dédié',
+      'Integrations personnalisees',
+      'Accompagnement dedie',
       'SLA garanti',
     ],
     highlighted: false,
@@ -44,6 +49,38 @@ const plans = [
 ]
 
 export function Pricing() {
+  const navigate = useNavigate()
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+
+  const handleSubscribe = async (priceId: string | null, planName: string) => {
+    if (!priceId) {
+      navigate({ to: '/', hash: 'tarifs' })
+      return
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      navigate({ to: '/login' })
+      return
+    }
+
+    setLoadingPlan(planName)
+
+    const { data, error } = await supabase.functions.invoke('create-checkout', {
+      body: { priceId },
+    })
+
+    setLoadingPlan(null)
+
+    if (error || !data?.url) {
+      alert("Une erreur s'est produite. Veuillez reessayer.")
+      return
+    }
+
+    window.location.href = data.url
+  }
+
   return (
     <section id="tarifs" className="mx-auto max-w-6xl px-6 py-20">
       <div className="mx-auto max-w-2xl text-center">
@@ -51,7 +88,7 @@ export function Pricing() {
           Tarifs
         </p>
         <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-          Un prix simple, adapté à votre taille
+          Un prix simple, adapte a votre taille
         </h2>
         <p className="mt-4 text-muted-foreground">
           Essai gratuit de 14 jours sur tous les plans. Sans engagement.
@@ -83,22 +120,27 @@ export function Pricing() {
             <ul className="mt-6 space-y-3 text-sm">
               {plan.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-2">
-                  <span className="mt-0.5 text-primary">✓</span>
+                  <span className="mt-0.5 text-primary">+</span>
                   <span className="text-muted-foreground">{feature}</span>
                 </li>
               ))}
             </ul>
 
-            <Link
-              to="/dashboard"
-              className={`mt-8 block rounded-full px-4 py-2.5 text-center text-sm font-semibold ${
+            <button
+              onClick={() => handleSubscribe(plan.priceId, plan.name)}
+              disabled={loadingPlan === plan.name}
+              className={`mt-8 block w-full rounded-full px-4 py-2.5 text-center text-sm font-semibold disabled:opacity-50 ${
                 plan.highlighted
                   ? 'bg-primary text-primary-foreground hover:opacity-90'
                   : 'border border-border text-foreground hover:bg-card'
               }`}
             >
-              Essai gratuit
-            </Link>
+              {loadingPlan === plan.name
+                ? 'Redirection...'
+                : plan.priceId
+                  ? "S'abonner"
+                  : 'Nous contacter'}
+            </button>
           </div>
         ))}
       </div>

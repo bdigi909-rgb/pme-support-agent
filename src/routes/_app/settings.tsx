@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
+import { useSubscription } from '@/hooks/useSubscription'
 
 export const Route = createFileRoute('/_app/settings')({
   head: () => ({
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/_app/settings')({
 function Settings() {
   const { user } = useAuth()
   const { companyName, isLoading, updateCompanyName, updatePassword } = useProfile(user)
+  const { subscription, isLoading: subLoading } = useSubscription(user)
 
   const [nameInput, setNameInput] = useState('')
   const [nameStatus, setNameStatus] = useState('')
@@ -65,6 +67,32 @@ function Settings() {
         <p className="mt-2 text-muted-foreground">
           Gerez les informations de votre compte.
         </p>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Abonnement
+        </h2>
+        {subLoading ? (
+          <p className="mt-4 text-sm text-muted-foreground">Chargement...</p>
+        ) : subscription?.plan ? (
+          <div className="mt-4">
+            <p className="text-sm">
+              Plan actuel : <span className="font-semibold capitalize">{subscription.plan}</span>
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Statut : {subscription.status}
+            </p>
+            {subscription.current_period_end && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Prochaine facturation : {new Date(subscription.current_period_end).toLocaleDateString('fr-FR')}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Aucun abonnement actif. Consultez nos tarifs pour vous abonner.
+          </p>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6">
