@@ -52,6 +52,39 @@ Deno.serve(async (req) => {
 
       const { data: { user } } = await supabaseClient.auth.getUser()
       targetUserId = user?.id ?? null
+
+      if (targetUserId) {
+        const { data: sub } = await supabaseAdmin
+          .from('subscriptions')
+          .select('plan, status')
+          .eq('user_id', targetUserId)
+          .maybeSingle()
+
+        if (sub?.status !== 'active') {
+          return new Response(JSON.stringify({ error: 'Abonnement inactif.' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+
+        if (sub.plan === 'starter') {
+          const { data: count } = await supabaseAdmin.rpc('count_monthly_conversations', {
+            check_user_id: targetUserId,
+          })
+
+          if ((count ?? 0) >= 200) {
+            return new Response(
+              JSON.stringify({
+                error: 'Limite de 200 conversations mensuelles atteinte pour votre plan Starter. Passez au plan Pro pour un usage illimite.',
+              }),
+              {
+                status: 403,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              },
+            )
+          }
+        }
+      }
     }
 
     if (targetUserId && queryEmbedding) {
