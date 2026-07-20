@@ -31,6 +31,30 @@ export function useChat(user: User | null) {
     return data.id
   }, [conversationId, user])
 
+  const startNewConversation = useCallback(() => {
+    setConversationId(null)
+    setMessages([])
+  }, [])
+
+  const loadConversation = useCallback(async (convId: string) => {
+    setConversationId(convId)
+
+    const { data } = await supabase
+      .from('messages')
+      .select('id, role, content, rating')
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true })
+
+    setMessages(
+      (data ?? []).map((m) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        rating: m.rating,
+      })),
+    )
+  }, [])
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || !user) return
@@ -117,5 +141,13 @@ export function useChat(user: User | null) {
     [],
   )
 
-  return { messages, isLoading, sendMessage, rateMessage }
+  return {
+    messages,
+    isLoading,
+    sendMessage,
+    rateMessage,
+    conversationId,
+    startNewConversation,
+    loadConversation,
+  }
 }
