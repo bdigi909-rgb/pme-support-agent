@@ -1,0 +1,97 @@
+import { useCallback, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+
+export function useChat(user: User | null) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+
+  const ensureConversation = useCallback(async () => {
+    if (conversationId) return conversationId
+    if (!user) return null
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({ user_id: user.id })
+      .select('id')
+      .single()
+
+    if (error || !data) return null
+
+    setConversationId(data.id)
+    return data.id
+  }, [conversationId, user])
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || !user) return
+
+      const userMessage: ChatMessage = { role: 'user', content: text }
+      const updatedMessages = [...messages, userMessage]
+      setMessages(updatedMessages)
+      setIsLoading(true)
+
+      const convId = await ensureConversation()
+
+      if (convId) {
+        await supabase.from('messages').insert({
+          conversation_id: convId,
+          role: 'user',
+          content: text,
+        })
+      }
+
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke('chat', {
+          body: {
+            messages: updatedMessages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+          },
+        })
+
+        if (fnError) {
+          throw new Error(fnError.message)
+        }
+
+        if (data.error) {
+          throw new Error(data.error.message ?? 'Erreur inconnue')
+        }
+
+        const reply =
+          data.choices?.[0]?.message?.content ??
+          "Desole, je n'ai pas pu generer de reponse."
+
+        const assistantMessage: ChatMessage = { role: 'assistant', content: reply }
+        setMessages((prev) => [...prev, assistantMessage])
+
+        if (convId) {
+          await supabase.from('messages').insert({
+            conversation_id: convId,
+            role: 'assistant',
+            content: reply,
+          })
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur de connexion.'
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: `Erreur: ${message}` },
+        ])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [user, ensureConversation, messages],
+  )
+
+  return { messages, isLoading, sendMessage }
+}
