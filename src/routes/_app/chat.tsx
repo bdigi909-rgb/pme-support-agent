@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app/chat')({
 
 function ChatAgent() {
   const { user } = useAuth()
-  const { messages, isLoading, sendMessage } = useChat(user)
+  const { messages, isLoading, sendMessage, rateMessage } = useChat(user)
 
   return (
     <div className="flex h-dvh flex-col">
@@ -24,7 +24,7 @@ function ChatAgent() {
         </p>
       </div>
 
-      <ChatMessages messages={messages} isLoading={isLoading} />
+      <ChatMessages messages={messages} isLoading={isLoading} onRate={rateMessage} />
       <ChatInput onSend={sendMessage} isLoading={isLoading} />
     </div>
   )

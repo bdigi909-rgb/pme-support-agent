@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app/dashboard')({
 
 function Dashboard() {
   const { user } = useAuth()
-  const { conversationsCount, documentsCount, isLoading } = useDashboardStats(user)
+  const { conversationsCount, documentsCount, satisfactionRate, isLoading } = useDashboardStats(user)
 
   return (
     <div className="p-6">
@@ -30,7 +30,10 @@ function Dashboard() {
           label="Documents actifs"
           value={isLoading ? '...' : String(documentsCount)}
         />
-        <StatCard label="Taux de satisfaction" value="—" />
+        <StatCard
+          label="Taux de satisfaction"
+          value={isLoading ? '...' : satisfactionRate !== null ? `${satisfactionRate}%` : '—'}
+        />
       </div>
     </div>
   )

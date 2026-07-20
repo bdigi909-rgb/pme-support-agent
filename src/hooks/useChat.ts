@@ -4,10 +4,11 @@ import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
 
 export interface ChatMessage {
+  id?: string
   role: 'user' | 'assistant'
   content: string
+  rating?: 'positive' | 'negative' | null
 }
-
 
 export function useChat(user: User | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -74,16 +75,24 @@ export function useChat(user: User | null) {
           data.choices?.[0]?.message?.content ??
           "Desole, je n'ai pas pu generer de reponse."
 
-        const assistantMessage: ChatMessage = { role: 'assistant', content: reply }
-        setMessages((prev) => [...prev, assistantMessage])
+        let messageId: string | undefined
 
         if (convId) {
-          await supabase.from('messages').insert({
-            conversation_id: convId,
-            role: 'assistant',
-            content: reply,
-          })
+          const { data: insertedMsg } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: convId,
+              role: 'assistant',
+              content: reply,
+            })
+            .select('id')
+            .single()
+
+          messageId = insertedMsg?.id
         }
+
+        const assistantMessage: ChatMessage = { id: messageId, role: 'assistant', content: reply }
+        setMessages((prev) => [...prev, assistantMessage])
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur de connexion.'
         setMessages((prev) => [
@@ -97,5 +106,16 @@ export function useChat(user: User | null) {
     [user, ensureConversation, messages],
   )
 
-  return { messages, isLoading, sendMessage }
+  const rateMessage = useCallback(
+    async (messageId: string, rating: 'positive' | 'negative') => {
+      await supabase.from('messages').update({ rating }).eq('id', messageId)
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, rating } : m)),
+      )
+    },
+    [],
+  )
+
+  return { messages, isLoading, sendMessage, rateMessage }
 }
