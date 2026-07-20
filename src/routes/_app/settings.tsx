@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { useSubscription } from '@/hooks/useSubscription'
+import { supabase } from '@/lib/supabase'
 
 export const Route = createFileRoute('/_app/settings')({
   head: () => ({
@@ -23,6 +24,21 @@ function Settings() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordStatus, setPasswordStatus] = useState('')
   const [isSavingPassword, setIsSavingPassword] = useState(false)
+
+  const [isManaging, setIsManaging] = useState(false)
+
+  const handleManageSubscription = async () => {
+    setIsManaging(true)
+    const { data, error } = await supabase.functions.invoke('create-portal-session')
+    setIsManaging(false)
+
+    if (error || !data?.url) {
+      alert("Une erreur s'est produite.")
+      return
+    }
+
+    window.location.href = data.url
+  }
 
   useEffect(() => {
     setNameInput(companyName)
@@ -87,6 +103,13 @@ function Settings() {
                 Prochaine facturation : {new Date(subscription.current_period_end).toLocaleDateString('fr-FR')}
               </p>
             )}
+            <button
+              onClick={handleManageSubscription}
+              disabled={isManaging}
+              className="mt-4 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-card disabled:opacity-50"
+            >
+              {isManaging ? 'Redirection...' : "Gerer mon abonnement"}
+            </button>
           </div>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">
