@@ -44,6 +44,17 @@ export function useDocuments(user: User | null) {
         return { error: 'Seuls les fichiers .txt et .pdf sont acceptes pour le moment.' }
       }
 
+      const { data: existing } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('name', file.name)
+        .maybeSingle()
+
+      if (existing) {
+        return { error: `Un document nomme "${file.name}" existe deja. Supprimez-le d'abord ou renommez le fichier.` }
+      }
+
       let content = ''
 
       try {
