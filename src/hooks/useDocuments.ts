@@ -104,6 +104,51 @@ export function useDocuments(user: User | null) {
     },
     [refetch],
   )
+  const migrateDocumentToVectors = useCallback(
+    async (docId: string, content: string) => {
+      if (!user) return
 
-  return { documents, isLoading, uploadDocument, deleteDocument, refetch, uploadProgress }
+      const chunks = chunkText(content)
+
+      for (let i = 0; i < chunks.length; i++) {
+        const embedding = await generateEmbedding(chunks[i])
+        await supabase.from('document_chunks').insert({
+          document_id: docId,
+          user_id: user.id,
+          content: chunks[i],
+          embedding,
+        })
+      }
+    },
+    [user],
+  )
+
+  const migrateAllDocuments = useCallback(async () => {
+    if (!user) return
+
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('id, content')
+      .eq('user_id', user.id)
+      .not('content', 'is', null)
+
+    if (!docs) return
+
+    for (const doc of docs) {
+      const { count } = await supabase
+        .from('document_chunks')
+        .select('id', { count: 'exact', head: true })
+        .eq('document_id', doc.id)
+
+      if (count === 0 && doc.content) {
+        setUploadProgress(`Migration en cours...`)
+        await migrateDocumentToVectors(doc.id, doc.content)
+      }
+    }
+
+    setUploadProgress('')
+    await refetch()
+  }, [user, migrateDocumentToVectors, refetch])
+
+  return { documents, isLoading, uploadDocument, deleteDocument, refetch, uploadProgress, migrateAllDocuments }
 }

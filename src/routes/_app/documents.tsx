@@ -12,7 +12,8 @@ export const Route = createFileRoute('/_app/documents')({
 
 function DocumentsPage() {
   const { user } = useAuth()
-  const { documents, isLoading, uploadDocument, deleteDocument, uploadProgress } = useDocuments(user)
+  const { documents, isLoading, uploadDocument, deleteDocument, uploadProgress, migrateAllDocuments } = useDocuments(user)
+  const [isMigrating, setIsMigrating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -37,11 +38,24 @@ function DocumentsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Documents</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Importez vos documents pour entrainer votre agent IA.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Documents</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Importez vos documents pour entrainer votre agent IA.
+          </p>
+        </div>
+        <button
+          onClick={async () => {
+            setIsMigrating(true)
+            await migrateAllDocuments()
+            setIsMigrating(false)
+          }}
+          disabled={isMigrating}
+          className="rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-card disabled:opacity-50"
+        >
+          {isMigrating ? (uploadProgress || 'Migration...') : 'Migrer les anciens documents'}
+        </button>
       </div>
 
       <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
