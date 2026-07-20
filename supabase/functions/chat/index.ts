@@ -11,31 +11,53 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json()
-
-    const authHeader = req.headers.get('Authorization')
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader ?? '' } } },
-    )
-
-    const { data: { user } } = await supabaseClient.auth.getUser()
+    const { messages, widgetOwnerId } = await req.json()
 
     let context = ''
+    let ownerId: string | null = null
 
-    if (user) {
-      const { data: documents } = await supabaseClient
+    if (widgetOwnerId) {
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      )
+
+      const { data: documents } = await supabaseAdmin
         .from('documents')
         .select('name, content')
-        .eq('user_id', user.id)
+        .eq('user_id', widgetOwnerId)
         .not('content', 'is', null)
 
       if (documents && documents.length > 0) {
         context = documents
           .map((doc: { name: string; content: string }) => `### ${doc.name}\n${doc.content}`)
           .join('\n\n')
+      }
+
+      ownerId = widgetOwnerId
+    } else {
+      const authHeader = req.headers.get('Authorization')
+
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader ?? '' } } },
+      )
+
+      const { data: { user } } = await supabaseClient.auth.getUser()
+
+      if (user) {
+        const { data: documents } = await supabaseClient
+          .from('documents')
+          .select('name, content')
+          .eq('user_id', user.id)
+          .not('content', 'is', null)
+
+        if (documents && documents.length > 0) {
+          context = documents
+            .map((doc: { name: string; content: string }) => `### ${doc.name}\n${doc.content}`)
+            .join('\n\n')
+        }
       }
     }
 
